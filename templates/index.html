@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convenience Store Storage System</title>
+    <link rel="stylesheet" href="static\css\style.css">
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #FFFDD0;
+            color: #262626;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            width: 220px;
+            background-color: #262626;
+            color: #FFFDD0;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar .header {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #90EE90;
+        }
+
+        .navbar a {
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 10px 15px;
+            margin: 5px 0;
+            text-decoration: none;
+            color: #FFFDD0;
+            border-radius: 25px;
+            background-color: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .navbar a:hover, .navbar a.active {
+            background-color: #90EE90;
+            color: #262626;
+            transform: scale(1.05);
+        }
+
+        /* Content Styles */
+        .content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .content h2 {
+            font-size: 2rem;
+            color: #262626;
+            margin-bottom: 15px;
+        }
+
+        .content form {
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .content form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #262626;
+        }
+
+        .content form input, 
+        .content form button,
+        .content form select {
+            width: calc(100% - 20px);
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+
+        .content form button {
+            background-color: #90EE90;
+            color: #262626;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .content form button:hover {
+            background-color: #76c776;
+        }
+
+        /* List Styles */
+        .content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .content ul li {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .content ul li button {
+            background-color: #FF6347;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-left: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .content ul li button:hover {
+            background-color: #E53E3E;
+        }
+
+    </style>
+    <script>
+        // Data Structures
+        let inventory = [];  // Linked list of products
+        let customers = [];  // Array of customers
+
+        let undoStack = [];
+        let redoStack = [];
+
+        // Function to show home page
+        function showHome() {
+            document.getElementById('content').innerHTML = `
+                <h2>Welcome to Convenience Store Storage System</h2>
+                <p>Select a feature from the menu to get started.</p>
+            `;
+            updateActiveNav('nav-home');
+            initUndoRedoButtons(); // Initialize Undo/Redo button states
+        }
+
+        // Show Add Product Page
+        function showAddProduct() {
+            document.getElementById('content').innerHTML = `
+                <h2>Add New Product</h2>
+                <form onsubmit="addProduct(event)">
+                    <label for="product-name">Product Name</label>
+                    <input type="text" id="product-name" placeholder="Enter product name" required>
+                    <label for="product-category">Category</label>
+                    <select id="product-category" required>
+                        <option value="Fruits and Vegetables">Fruits and Vegetables</option>
+                        <option value="Meat and Seafood">Meat and Seafood</option>
+                        <option value="Dairy and Eggs">Dairy and Eggs</option>
+                        <option value="Bakery Items">Bakery Items</option>
+                        <option value="Pantry Staples">Pantry Staples (grains, canned goods, spices)</option>
+                        <option value="Snacks and Sweets">Snacks and Sweets</option>
+                        <option value="Frozen Foods">Frozen Foods</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Household Items">Household Items</option>
+                        <option value="Baby and Pet Supplies">Baby and Pet Supplies</option>
+                    </select>
+                    <label for="product-price">Price (₱)</label>
+                    <input type="number" id="product-price" placeholder="Enter price" required>
+                    <label for="product-stock">Stock Quantity</label>
+                    <input type="number" id="product-stock" placeholder="Enter stock quantity" required>
+                    <button type="submit">Add Product</button>
+                </form>
+            `;
+            updateActiveNav('nav-add-product');
+        }
+
+        // Add a Product
+        function addProduct(event) {
+            event.preventDefault();
+
+            // Push current state to undoStack
+            pushStateToUndo();
+
+            const name = document.getElementById('product-name').value.trim();
+            const category = document.getElementById('product-category').value.trim();
+            const price = parseFloat(document.getElementById('product-price').value);
+            const stock = parseInt(document.getElementById('product-stock').value);
+            const newProduct = { id: Date.now(), name, category, price, stock };
+
+            inventory.push(newProduct);
+            inventory.sort((a, b) => a.name.localeCompare(b.name));
+
+            alert('Product added successfully!');
+
+            // Clear input fields
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-category').value = 'Fruits and Vegetables'; 
+            document.getElementById('product-price').value = '';
+            document.getElementById('product-stock').value = '';
+
+            updateUndoRedoButtons();
+            renderProductList(); // Update the list of products
+        }
+
+
+
+        // Show Products List
+        function showProductsList() {
+            document.getElementById('content').innerHTML = `
+                <h2>All Available Products</h2>
+                <input type="text" id="product-search" placeholder="Search products..." onkeyup="searchProducts()">
+                <ul id="product-list"></ul>
+                
+                <h3>Sell Product</h3>
+                <form onsubmit="sellProduct(event)">
+                    <label for="product_name">Product Name</label>
+                    <input type="text" id="product_name" placeholder="Enter product name" required>
+                    <label for="customer_id">Customer ID</label>
+                    <input type="text" id="customer_id" placeholder="Enter customer ID" required>
+                    <label for="quantity">Quantity</label>
+                    <input type="number" id="quantity" placeholder="Enter quantity" required>
+                    <button type="submit">Sell Product</button>
+                </form>
+            `;
+            updateActiveNav('nav-view-products');
+            renderProductList(); // Call render function to display products
+        }
+
+
+        function searchProducts() {
+            const searchTerm = document.getElementById('product-search').value.toLowerCase();
+            renderProductList(searchTerm);
+        }
+
+        function renderProductList(searchTerm = '') {
+            let filteredProducts = inventory.filter(item => 
+                item.name.toLowerCase().includes(searchTerm) || 
+                item.category.toLowerCase().includes(searchTerm)
+            );
+
+            let itemsHtml = filteredProducts.map(item => `
+                <li>
+                    ${item.name} - ${item.category} - ₱${item.price.toFixed(2)} - ${item.stock} in stock
+                    <button onclick="showEditProduct(${item.id})">Edit</button>
+                </li>
+            `).join('');
+
+            document.getElementById('product-list').innerHTML = itemsHtml;
+        }
+
+        // Show Edit Product Page
+        function showEditProduct(productId) {
+            const product = inventory.find(p => p.id === productId);
+            document.getElementById('content').innerHTML = `
+                <h2>Edit Product: ${product.name}</h2>
+                <form onsubmit="editProduct(event, ${productId})">
+                    <label for="edit-price">Price (₱)</label>
+                    <input type="number" id="edit-price" value="${product.price}" required>
+                    <label for="edit-stock">Stock Quantity</label>
+                    <input type="number" id="edit-stock" value="${product.stock}" required>
+                    <button type="submit">Save Changes</button>
+                </form>
+            `;
+            updateActiveNav('nav-edit-product');
+        }
+
+        // Edit Product Details
+        function editProduct(event, productId) {
+            event.preventDefault();
+            const price = parseFloat(document.getElementById('edit-price').value);
+            const stock = parseInt(document.getElementById('edit-stock').value);
+            const product = inventory.find(p => p.id === productId);
+
+            // Push current state to undoStack before making changes
+            pushStateToUndo();
+
+            product.price = price;
+            product.stock = stock;
+
+            if (product.stock === 0) {
+                inventory = inventory.filter(p => p.id !== productId);
+                alert('Product removed due to zero stock!');
+            } else {
+                alert('Product updated successfully!');
+            }
+
+            renderProductList(); // Refresh the product list
+        }
+
+
+        // Show Register Customer Page
+        function showRegisterCustomer() {
+            document.getElementById('content').innerHTML = `
+                <h2>Register Customer</h2>
+                <form onsubmit="registerCustomer(event)">
+                    <label for="customer-id">Customer ID</label>
+                    <input type="text" id="customer-id" placeholder="Enter customer ID" required>
+                    <label for="customer-name">Customer Name</label>
+                    <input type="text" id="customer-name" placeholder="Enter customer name" required>
+                    <button type="submit">Register Customer</button>
+                </form>
+            `;
+            updateActiveNav('nav-register-customer');
+        }
+
+        // Register a New Customer
+        function registerCustomer(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('customer-id').value.trim();
+            const name = document.getElementById('customer-name').value.trim();
+            const newCustomer = { id, name, purchases: [] };
+
+            // Push current state to undoStack before adding the customer
+            pushStateToUndo();
+
+            customers.push(newCustomer);
+            alert('Customer registered successfully!');
+
+            // Clear input fields
+            document.getElementById('customer-id').value = '';
+            document.getElementById('customer-name').value = '';
+
+            renderCustomerList(); // Update the list of customers
+        }
+
+        // Show Registered Customers List
+        function showCustomersList() {
+            document.getElementById('content').innerHTML = `
+                <h2>Registered Customers</h2>
+                <input type="text" id="customer-search" placeholder="Search customers..." onkeyup="searchCustomers()">
+                <ul id="customer-list"></ul>
+            `;
+            updateActiveNav('nav-view-customers');
+            renderCustomerList(); // Call render function to display customers
+        }
+
+        // Search Customers
+        function searchCustomers() {
+            const searchTerm = document.getElementById('customer-search').value.toLowerCase();
+            renderCustomerList(searchTerm);
+        }
+
+        function renderCustomerList(searchTerm = '') {
+            let filteredCustomers = customers.filter(customer => 
+                customer.name.toLowerCase().includes(searchTerm) || 
+                customer.id.toLowerCase().includes(searchTerm)
+            );
+
+            let customersHtml = filteredCustomers.map((customer, index) => `
+                <li>
+                    ${customer.name} - ID: ${customer.id}
+                    <button onclick="removeCustomer(${index})">Remove</button>
+                </li>
+            `).join('');
+
+            document.getElementById('customer-list').innerHTML = customersHtml;
+        }
+
+        function sellProduct(event) {
+            event.preventDefault();
+
+            const productName = document.getElementById('product_name').value.trim();
+            const customerId = document.getElementById('customer_id').value.trim();
+            const quantity = parseInt(document.getElementById('quantity').value);
+
+            pushStateToUndo(); // Push current state to undoStack before making changes
+
+            // Find product by name
+            const product = inventory.find(p => p.name.toLowerCase() === productName.toLowerCase());
+            if (!product) {
+                alert('Product not found!');
+                return;
+            }
+
+            // Find customer by ID
+            const customer = customers.find(c => c.id === customerId);
+            if (!customer) {
+                alert('Customer not found!');
+                return;
+            }
+
+            // Check if enough stock is available
+            if (product.stock < quantity) {
+                alert('Not enough stock!');
+                return;
+            }
+
+            // Perform the sale (reduce stock)
+            product.stock -= quantity;
+            customer.purchases.push({ product: productName, quantity: quantity });
+
+            alert(`Sold ${quantity} of ${productName} to ${customerId}!`);
+
+            renderProductList(); // Update the product list after the sale
+
+            if (product.stock < 10) {
+                alert(`${product.name} is low on stock. Added to restock queue.`);
+                renderRestockQueue(); // Update restock queue display
+            }
+
+        }
+
+        function showRestockQueue() {
+            document.getElementById('content').innerHTML = `
+                <h2>Restock Queue</h2>
+                <ul id="restock-queue-list"></ul>
+            `;
+            updateActiveNav('nav-restock-queue');
+            renderRestockQueue();
+        }
+
+        function renderRestockQueue() {
+            const restockQueueHtml = inventory.filter(item => item.stock < 10)
+                .map(item => `
+                    <li>
+                        ${item.name} - Stock: ${item.stock}
+                        <button onclick="restockProduct(${item.id})">Restock</button>
+                    </li>
+                `).join('');
+            document.getElementById('restock-queue-list').innerHTML = restockQueueHtml || '<p>No items in the restock queue.</p>';
+        }
+
+        function restockProduct(productId) {
+            const product = inventory.find(p => p.id === productId);
+            if (product) {
+                product.stock += 20; // Restock logic
+                alert(`${product.name} restocked by 20 units!`);
+                renderRestockQueue();
+                renderProductList();
+            }
+        }
+
+        // Remove a Customer
+        function removeCustomer(index) {
+            customers.splice(index, 1);
+            alert('Customer removed successfully!');
+            showCustomersList();
+        }
+
+        // Update Navigation
+        function updateActiveNav(activeId) {
+            document.querySelectorAll('.navbar a').forEach(nav => nav.classList.remove('active'));
+            document.getElementById(activeId).classList.add('active');
+        }
+
+        function pushStateToUndo() {
+            undoStack.push(JSON.stringify({ inventory: [...inventory], customers: [...customers] }));
+            // Clear the redo stack when a new action is performed
+            redoStack = [];
+        }
+
+        // Undo Action
+        function undoAction() {
+            if (undoStack.length === 0) {
+                alert('Nothing to undo!');
+                return;
+            }
+            redoStack.push(JSON.stringify({ inventory: [...inventory], customers: [...customers] }));
+            const lastState = JSON.parse(undoStack.pop());
+            inventory = lastState.inventory;
+            customers = lastState.customers;
+            alert('Undo successful!');
+            updateUndoRedoButtons();
+            renderProductList(); // Refresh the product list after undo
+            renderCustomerList(); // Refresh the customer list after undo
+        }
+
+        // Redo Action
+        function redoAction() {
+            if (redoStack.length === 0) {
+                alert('Nothing to redo!');
+                return;
+            }
+            undoStack.push(JSON.stringify({ inventory: [...inventory], customers: [...customers] }));
+            const lastState = JSON.parse(redoStack.pop());
+            inventory = lastState.inventory;
+            customers = lastState.customers;
+            alert('Redo successful!');
+            updateUndoRedoButtons();
+            renderProductList(); // Refresh the product list after redo
+            renderCustomerList(); // Refresh the customer list after redo
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('nav-undo').style.display = undoStack.length > 0 ? 'block' : 'none';
+            document.getElementById('nav-redo').style.display = redoStack.length > 0 ? 'block' : 'none';
+        }
+
+        function initUndoRedoButtons() {
+            updateUndoRedoButtons();
+        }
+
+        // Initialize the application
+        window.onload = function() {
+            showHome();
+            initUndoRedoButtons(); // Initialize Undo/Redo button states
+        };
+
+    </script>
+</head>
+<body>
+    <div class="navbar">
+        <div class="header">Store Storage System</div>
+        <a href="#" onclick="showHome()" id="nav-home">Home</a>
+        <a href="#" onclick="showAddProduct()" id="nav-add-product">Add Product</a>
+        <a href="#" onclick="showRegisterCustomer()" id="nav-register-customer">Register Customer</a>
+        <a href="#" onclick="showProductsList()" id="nav-view-products">View Products</a>
+        <a href="#" onclick="showRestockQueue()" id="nav-restock-queue">Restock Queue</a>
+        <a href="#" onclick="showCustomersList()" id="nav-view-customers">View Customers</a>
+        <a href="#" onclick="undoAction()" id="nav-undo">Undo</a>
+        <a href="#" onclick="redoAction()" id="nav-redo">Redo</a>
+
+    </div>
+    <div class="content" id="content">
+    </div>
+</body>
+</html>
