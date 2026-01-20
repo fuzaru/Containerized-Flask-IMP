@@ -44,25 +44,19 @@ A Flask-based web application for managing inventory in a convenience store, fea
 
    Access the app at `http://localhost:5000`.
 
-## Deployment to Heroku
+## Deployment to Railway
 
-1. Install the Heroku CLI and log in.
+1. Sign up at [railway.app](https://railway.app) and connect your GitHub account.
 
-2. Create a new Heroku app:
-   ```
-   heroku create your-app-name
-   ```
+2. Create a new project from your GitHub repository.
 
-3. Deploy:
-   ```
-   git push heroku main
-   ```
+3. Railway will auto-detect the Dockerfile and deploy the app.
 
-   The app will be live at `https://your-app-name.herokuapp.com`.
+4. Once deployed, access the live app via the provided URL (e.g., `https://your-project-name.up.railway.app`).
 
 ## Technologies Used
 
 - Flask
 - HTML/CSS
 - Docker
-- Heroku
+- Railway
