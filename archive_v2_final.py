@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 from collections import deque
+import os
 
 app = Flask(__name__)
 
@@ -476,4 +477,6 @@ def redo():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)
